@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4F0307">
+<meta name="description" content="Business permit (eBOSS) and real property tax (RPTACS) demo. Data stays on this device.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="eBOSS RPTACS">
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>eBOSS &amp; RPTACS Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="qrcode.js"></script>
+<style>
+/* Layout: a working prototype in the blueprint's palette. Role switcher on top, a work queue per role, a side sheet for each record. Gold = eBOSS, maroon = RPTACS. */
+:root{
+  --bg:#FDFBF6; --surface:#FFFFFF; --tint:#F9EDDD; --line:#E6D5BC; --ink:#2E1A12; --muted:#6E5748;
+  --gold:#BD7103; --gold-ink:#8A5000; --gold-soft:#F7E0B5;
+  --maroon:#6E040E; --maroon-ink:#6E040E; --maroon-soft:#EFCFD2; --deep:#4F0307; --on-deep:#FFF4E6;
+  --ok:#1F6B3A; --ok-soft:#DDEFE2; --bad:#A3231A; --bad-soft:#F8DCD8; --new:#4C5A6E; --new-soft:#E3E8EF;
+  --shade:rgba(46,26,18,.42);
+  --display:'Bitter',Georgia,'Times New Roman',serif;
+  --sans:'Source Sans 3',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1A0F0C; --surface:#241510; --tint:#2F1C15; --line:#4A3126; --ink:#F6EADB; --muted:#C4AB97;
+    --gold:#E59A2B; --gold-ink:#F0B656; --gold-soft:#4A3210;
+    --maroon:#8E1220; --maroon-ink:#F2A3AB; --maroon-soft:#4A1519; --deep:#5A0A12; --on-deep:#FFF4E6;
+    --ok:#7FD39A; --ok-soft:#173523; --bad:#FF9A8F; --bad-soft:#4A1A16; --new:#B9C6D8; --new-soft:#26303D;
+    --shade:rgba(0,0,0,.6); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1A0F0C; --surface:#241510; --tint:#2F1C15; --line:#4A3126; --ink:#F6EADB; --muted:#C4AB97;
+  --gold:#E59A2B; --gold-ink:#F0B656; --gold-soft:#4A3210;
+  --maroon:#8E1220; --maroon-ink:#F2A3AB; --maroon-soft:#4A1519; --deep:#5A0A12; --on-deep:#FFF4E6;
+  --ok:#7FD39A; --ok-soft:#173523; --bad:#FF9A8F; --bad-soft:#4A1A16; --new:#B9C6D8; --new-soft:#26303D;
+  --shade:rgba(0,0,0,.6); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans);-webkit-text-size-adjust:100%}
+.in{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
+h2{font-size:clamp(1.4rem,3vw,1.8rem);font-weight:800}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+.eyebrow{font:700 .74rem/1.2 var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.g{color:var(--gold-ink)} .m{color:var(--maroon-ink)}
+.mono{font-family:var(--mono);font-size:.9em}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* top band */
+.top{background:var(--tint);border-bottom:1px solid var(--line)}
+.top .in{display:grid;gap:14px;padding-block:22px 16px}
+.brand{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px}
+.brand h1{font-size:clamp(1.7rem,4.5vw,2.4rem);font-weight:800}
+.brand p.sub{color:var(--muted);max-width:44rem;font-size:.97rem}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.84rem;color:var(--muted);white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--ok);display:block}
+.chip.warn i{background:var(--bad)}
+nav.roles{display:flex;flex-wrap:wrap;gap:6px}
+nav.roles button{font:600 .9rem var(--sans);padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+nav.roles button:hover{border-color:var(--gold)}
+nav.roles button[aria-pressed="true"]{background:var(--deep);border-color:var(--deep);color:var(--on-deep)}
+nav.roles .ct{display:inline-block;min-width:20px;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--gold);color:#2A1500;font-size:.75rem;line-height:18px;text-align:center}
+
+main .in{padding-block:26px 40px;display:grid;gap:26px}
+.vhead{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;justify-content:space-between}
+.vhead .who{color:var(--muted);margin-top:4px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:700 .92rem var(--sans);padding:10px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--edge,var(--muted))}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#2A1500}
+.btn.maroon{background:var(--maroon);border-color:var(--maroon);color:#fff}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.btn.bad{background:var(--surface);border-color:var(--bad);color:var(--bad)}
+.btn.small{padding:6px 12px;font-size:.84rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:22px}
+.block{display:grid;gap:10px;min-width:0}
+.block>header{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.block>header small{color:var(--muted);font-size:.85rem}
+.list{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.row:hover{border-color:var(--gold)}
+.row.prop:hover{border-color:var(--maroon-ink)}
+.row b{display:block;font-weight:700;overflow-wrap:anywhere}
+.row small{display:block;color:var(--muted);font-size:.85rem}
+.rside{display:grid;justify-items:end;gap:4px;text-align:right}
+.tag{font:700 .68rem/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:6px 7px;border-radius:5px;writing-mode:horizontal-tb}
+.tag.biz{background:var(--gold-soft);color:var(--gold-ink)}
+.tag.prop{background:var(--maroon-soft);color:var(--maroon-ink)}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:.95rem}
+.pill{display:inline-block;font:700 .76rem/1 var(--sans);padding:5px 9px;border-radius:999px;white-space:nowrap}
+.pill.new{background:var(--new-soft);color:var(--new)}
+.pill.act{background:var(--gold-soft);color:var(--gold-ink)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.hint{font-size:.82rem;color:var(--gold-ink);font-weight:600}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tile{padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface);display:grid;gap:4px}
+.tile b{font:800 1.5rem var(--display);font-variant-numeric:tabular-nums}
+.tile small{color:var(--muted)}
+.tile.dk{background:var(--deep);border-color:var(--deep);color:var(--on-deep)}
+.tile.dk small,.tile.dk .eyebrow{color:var(--on-deep);opacity:.8}
+.pipe{display:flex;flex-wrap:wrap;gap:6px}
+.pipe span{padding:6px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:.86rem}
+.pipe b{font-variant-numeric:tabular-nums;margin-right:4px}
+
+.notice{display:grid;gap:2px;padding:10px 12px;border-left:3px solid var(--gold);background:var(--surface);border-radius:0 8px 8px 0;font-size:.92rem}
+.notice small{color:var(--muted)}
+.field{display:grid;gap:4px;min-width:0}
+.field label,.lbl{font-weight:700;font-size:.86rem}
+.field small{color:var(--muted);font-size:.82rem}
+input[type=text],input[type=number],input[type=date],select,textarea{font:inherit;font-size:.95rem;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
+textarea{min-height:70px;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.check{display:flex;gap:8px;align-items:center;font-size:.92rem}
+
+/* sheet */
+.shade{position:fixed;inset:0;background:var(--shade);z-index:20}
+.sheet{position:fixed;top:0;right:0;bottom:0;width:min(620px,100%);background:var(--bg);z-index:21;overflow-y:auto;border-left:1px solid var(--line);
+  padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:calc(30px + env(safe-area-inset-bottom,0px));
+  padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px))}
+.sheet-in{display:grid;gap:18px}
+.sh-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.sh-head h2{font-size:1.5rem;overflow-wrap:anywhere}
+.x{font:700 1rem var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;width:38px;height:38px;cursor:pointer;flex:none}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px}
+.steps li{font-size:.78rem;font-weight:600;padding:5px 9px;border-radius:6px;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+.steps li.done{background:var(--tint);color:var(--ink)}
+.steps li.cur{background:var(--deep);border-color:var(--deep);color:var(--on-deep)}
+.steps li.cur.badstep{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+dl.facts{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px 18px}
+dl.facts dt{font-size:.76rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+dl.facts dd{margin:0;overflow-wrap:anywhere}
+.box{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:14px 16px;display:grid;gap:10px}
+.box.act-box{border-color:var(--gold);border-width:2px}
+.box.prop-act{border-color:var(--maroon-ink)}
+.box.bad-box{border-color:var(--bad);border-width:2px}
+.box h3{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+table.money{width:100%;border-collapse:collapse;font-size:.94rem}
+table.money td{padding:5px 0;border-bottom:1px solid var(--line)}
+table.money td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.money tr.tot td{font-weight:800;border-bottom:0;padding-top:8px}
+.clr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.clr div{padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:.86rem;display:grid;gap:4px}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.photos figure{margin:0;display:grid;gap:4px}
+.photos img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--tint)}
+.photos figcaption{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.ups{display:grid;gap:6px}
+.up{display:flex;gap:10px;align-items:center;font-size:.86rem;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.up img{width:52px;height:40px;object-fit:cover;border-radius:5px;flex:none}
+.up span{min-width:0;overflow-wrap:anywhere}
+.up b{color:var(--ok)}
+.drop{display:grid;gap:6px;padding:12px;border:1px dashed var(--muted);border-radius:10px}
+.cert{border:2px solid var(--gold);border-radius:12px;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--surface)}
+.cert.rp{border-color:var(--maroon-ink)}
+.cert h3{font-size:1.15rem}
+.qr{background:#fff;padding:4px;border-radius:6px;line-height:0}
+.qr-fallback{max-width:140px;font-size:.7rem;color:var(--muted);overflow-wrap:anywhere}
+ol.hist{list-style:none;margin:0;padding:0;display:grid;gap:0}
+ol.hist li{display:grid;grid-template-columns:12px minmax(0,1fr);gap:10px;padding-bottom:12px}
+ol.hist li::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--gold);margin-top:6px}
+ol.hist .meta{font-size:.8rem;color:var(--muted)}
+ol.hist .ntc{font-size:.74rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:6px;white-space:nowrap}
+.warnline{padding:10px 12px;border-radius:8px;background:var(--bad-soft);color:var(--bad);font-size:.92rem}
+.okline{padding:10px 12px;border-radius:8px;background:var(--ok-soft);color:var(--ok);font-size:.92rem}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.gallery figure{margin:0;display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
+.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.trybox{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:14px;align-items:start}
+.trybox img{width:100%;border-radius:8px;border:1px solid var(--line)}
+@media (max-width:560px){.trybox{grid-template-columns:1fr}.clr{grid-template-columns:1fr}.cert{grid-template-columns:1fr}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--deep);color:var(--on-deep);padding:10px 16px;border-radius:10px;font-weight:600;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast.err{background:var(--bad);color:var(--surface)}
+.hside{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tutbtn{display:inline-flex;align-items:center;gap:6px;font:700 .88rem var(--sans);padding:6px 13px 6px 8px;border-radius:999px;border:1.5px solid var(--maroon-ink);background:var(--surface);color:var(--maroon-ink);cursor:pointer}
+.tutbtn:hover{background:var(--maroon-soft)}
+.tour{position:fixed;inset:0;z-index:30;background:var(--shade);display:grid;place-items:center;overflow-y:auto;
+  padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tour[hidden]{display:none}
+.tour-card{width:min(600px,100%);background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:20px 22px 22px;display:grid;gap:12px;box-shadow:0 18px 50px rgba(0,0,0,.3)}
+.tour-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tour-dots{display:flex;flex-wrap:wrap;gap:4px}
+.tour-dots i{width:20px;height:4px;border-radius:2px;background:var(--line)}
+.tour-dots i.done{background:var(--gold)} .tour-dots i.on{background:var(--maroon-ink)}
+.tour-card h2{font-size:1.45rem}
+.tour-role{font-size:.92rem;color:var(--muted)} .tour-role b{color:var(--ink)}
+.tour-body{display:grid;gap:10px;max-width:65ch}
+.tour-body ol,.tour-body ul{margin:0;padding-left:1.25rem;display:grid;gap:6px}
+.tour-body .tip{padding:9px 12px;border-radius:8px;background:var(--tint);font-size:.93rem}
+.tour-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;padding-top:4px}
+.tour-nav [data-tour=back]{margin-right:auto}
+footer .in{padding-block:22px 34px;color:var(--muted);font-size:.88rem;border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){.row,.btn,nav.roles button{transition:border-color .15s,background .15s}}
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="in">
+    <div class="brand">
+      <div>
+        <p class="eyebrow">Working demo</p>
+        <h1><span class="g">eBOSS</span> &amp; <span class="m">RPTACS</span></h1>
+        <p class="sub">Pick a role and move a record through the flow. Records and photos are saved in this browser's IndexedDB. Photos are compressed to base64 JPEG under a size limit before saving.</p>
+      </div>
+      <div class="hside">
+        <button class="tutbtn" data-tour="open" type="button" aria-label="Tutorial: how the demo works"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.25" fill="currentColor"/></svg><span>Tutorial</span></button>
+        <button class="btn small gold" id="installBtn" type="button" hidden>Install app</button>
+        <span class="chip" id="dbChip"><i></i><span>Opening storage…</span></span>
+      </div>
+    </div>
+    <nav class="roles" id="roles" aria-label="Act as"></nav>
+  </div>
+</header>
+<main><div class="in" id="app"><p class="muted">Loading demo…</p></div></main>
+<footer><div class="in">Demo only. Fees, tax rates, assessment levels and penalties are placeholders until confirmed against the LGU's ordinances. Data never leaves this browser.</div></footer>
+
+<div class="shade" id="shade" hidden></div>
+<aside class="sheet" id="sheet" hidden aria-modal="true" role="dialog" aria-labelledby="shTitle"><div class="sheet-in" id="sheetBody"></div></aside>
+<div class="tour" id="tour" hidden role="dialog" aria-modal="true" aria-labelledby="tourTitle"><div class="tour-card" id="tourBody"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const peso=n=>'₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const r2=n=>Math.round((Number(n)||0)*100)/100;
+const fmtB=b=>b>=1048576?(b/1048576).toFixed(2)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+const fmtDate=s=>s?new Date(s.length===10?s+'T00:00:00':s).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}):'—';
+const fmtTime=s=>new Date(s).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+const uid=p=>p+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const isoDay=(d=new Date())=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return d.toISOString()};
+const plusDays=n=>{const d=new Date();d.setDate(d.getDate()+n);return isoDay(d)};
+const b64Bytes=d=>Math.floor((d.length-d.indexOf(',')-1)*3/4);
+const YEAR=new Date().getFullYear();
+
+/* ---------- IndexedDB (with in-memory fallback) ---------- */
+const DB=(()=>{
+  const KEYS={businesses:'id',properties:'id',files:'id',meta:'key'};
+  const mem={}; for(const k in KEYS) mem[k]=new Map();
+  let db=null;
+  function open(){return new Promise(res=>{try{
+    const rq=indexedDB.open('lgu-eboss-rptacs-demo',1);
+    rq.onupgradeneeded=()=>{const d=rq.result;for(const s in KEYS) if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:KEYS[s]});};
+    rq.onsuccess=()=>{db=rq.result;res(true)};rq.onerror=()=>res(false);rq.onblocked=()=>res(false);
+  }catch(e){res(false)}})}
+  function tx(store,mode,fn){return new Promise((res,rej)=>{
+    const t=db.transaction(store,mode);const req=fn(t.objectStore(store));let out;
+    if(req) req.onsuccess=()=>{out=req.result};
+    t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error('Storage write was cancelled'));
+  })}
+  const clone=v=>JSON.parse(JSON.stringify(v));
+  return{
+    open, get persistent(){return !!db},
+    all:s=>db?tx(s,'readonly',st=>st.getAll()):Promise.resolve([...mem[s].values()].map(clone)),
+    get:(s,k)=>db?tx(s,'readonly',st=>st.get(k)):Promise.resolve(mem[s].has(k)?clone(mem[s].get(k)):undefined),
+    put:(s,v)=>db?tx(s,'readwrite',st=>st.put(v)):(mem[s].set(v[KEYS[s]],clone(v)),Promise.resolve()),
+    del:(s,k)=>db?tx(s,'readwrite',st=>st.delete(k)):(mem[s].delete(k),Promise.resolve()),
+    clearAll:async()=>{for(const s in KEYS){ if(db) await tx(s,'readwrite',st=>st.clear()); else mem[s].clear(); }}
+  };
+})();
+
+/* ---------- image compression to base64 ---------- */
+async function compressImage(src,{limitKB,maxSide}){
+  const w0=src.naturalWidth||src.width,h0=src.naturalHeight||src.height;
+  let scale=Math.min(1,maxSide/Math.max(w0,h0));
+  const limit=limitKB*1024;let best=null;
+  for(let pass=0;pass<6;pass++){
+    const w=Math.max(1,Math.round(w0*scale)),h=Math.max(1,Math.round(h0*scale));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(src,0,0,w,h);
+    for(const q of [0.82,0.72,0.62,0.52,0.42]){
+      const d=c.toDataURL('image/jpeg',q);const bytes=b64Bytes(d);
+      best={dataUrl:d,bytes,w,h,q};
+      if(bytes<=limit) return best;
+    }
+    scale*=0.75;
+  }
+  return best;
+}
+async function fileToImage(file){
+  const url=URL.createObjectURL(file);
+  try{const img=new Image();img.src=url;await img.decode();return img}
+  finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}
+}
+async function storeImage(file){
+  if(!file.type.startsWith('image/')) throw new Error(`${file.name} is not an image. Attach photos or scans as JPG or PNG.`);
+  if(file.size>30*1048576) throw new Error(`${file.name} is over 30 MB. Pick a smaller photo.`);
+  const img=await fileToImage(file);
+  const c=await compressImage(img,S.settings);
+  const rec={id:uid('f'),name:file.name.replace(/\.[^.]+$/,'')+'.jpg',dataUrl:c.dataUrl,bytes:c.bytes,origBytes:file.size,w:c.w,h:c.h,q:c.q,origW:img.naturalWidth,origH:img.naturalHeight,recId:null,ref:'',created:new Date().toISOString()};
+  await DB.put('files',rec);
+  return rec;
+}
+
+/* ---------- state & config ---------- */
+const S={role:'owner',office:'sanitary',biz:[],prop:[],settings:{limitKB:150,maxSide:1280},open:null,form:null,pending:[],confirmReset:false};
+const ROLES=[
+  {id:'owner',label:'Owner portal',who:'Signed in as Maria Dela Cruz (demo account) · business and property owner'},
+  {id:'bplo',label:'BPLO',who:'Business Permits and Licensing Office · application queue'},
+  {id:'reg',label:'Regulatory offices',who:'Health, building and fire officers · clearance inbox'},
+  {id:'treas',label:'Treasurer',who:"Treasurer's Office · collections desk"},
+  {id:'assessor',label:'Assessor',who:"Assessor's Office · property registry"},
+  {id:'mayor',label:'Mayor',who:"Mayor's Office · executive dashboard"},
+  {id:'admin',label:'Storage',who:'LGU system administrator · images and IndexedDB'}
+];
+const OFFICES={sanitary:'Health (sanitary)',building:'Building official',fire:'Fire (BFP)'};
+const BIZ_STEPS=['Submitted','Clearances','For assessment','For payment','Paid','Issued'];
+const PROP_STEPS=['Declared','Registered','Assessed','Billed','Paid','Cleared'];
+const LEVELS={Residential:0.20,Commercial:0.50,Agricultural:0.40,Industrial:0.50};
+const RATES={basic:0.02,sef:0.01,idle:0.05,penaltyMonth:0.02,penaltyCap:36};
+const NATURES=['Retail (sari-sari / general merchandise)','Food and beverage','Services','Printing and publishing','Manufacturing','Lodging'];
+
+const all=()=>[...S.biz,...S.prop];
+const find=id=>all().find(r=>r.id===id);
+const roleLabel=()=>S.role==='owner'?'Maria Dela Cruz (owner)':S.role==='reg'?OFFICES[S.office]:ROLES.find(r=>r.id===S.role).label;
+const amountDue=p=>p.bill?r2(p.bill.total+(p.bill.penalty||0)):0;
+
+function addHist(rec,status,note,by=roleLabel(),notify=true){
+  rec.hist.push({at:new Date().toISOString(),by,status,note,notify});
+  rec.status=status;rec.updated=new Date().toISOString();
+}
+async function save(rec){
+  try{await DB.put(rec.kind==='biz'?'businesses':'properties',rec)}
+  catch(e){throw new Error('The browser refused to save. Storage may be full: lower the image limit or remove old records.')}
+}
+async function nextNo(prefix){
+  const m=(await DB.get('meta','seq'))||{key:'seq',n:{}};
+  m.n[prefix]=(m.n[prefix]||0)+1;await DB.put('meta',m);
+  return `${prefix}-${YEAR}-${String(m.n[prefix]).padStart(5,'0')}`;
+}
+async function load(){
+  const by=(a,b)=>(b.updated||b.created).localeCompare(a.updated||a.created);
+  S.biz=(await DB.all('businesses')).sort(by);
+  S.prop=(await DB.all('properties')).sort(by);
+}
+
+/* ---------- queues ---------- */
+function needs(role,r){
+  if(r.kind==='biz'){
+    if(role==='owner') return r.status==='Returned'||r.status==='For payment';
+    if(role==='bplo') return r.status==='Submitted';
+    if(role==='reg') return r.status==='Clearances'&&r.clear[S.office]==='pending';
+    if(role==='treas') return r.status==='For assessment'||(r.status==='Paid'&&r.pay&&r.pay.status==='Confirmed');
+    if(role==='mayor') return r.status==='Paid'&&r.pay&&r.pay.status==='Receipted';
+  }else{
+    if(role==='owner') return r.status==='Billed'||r.status==='Overdue';
+    if(role==='assessor') return r.status==='Declared'||r.status==='Registered';
+    if(role==='treas') return r.status==='Assessed'||r.status==='Paid';
+  }
+  return false;
+}
+function hint(role,r){
+  if(!needs(role,r)) return '';
+  const m={
+    owner:r.status==='Returned'?'Fix and resubmit':r.kind==='biz'?'Pay '+peso(r.fees&&r.fees.total):'Pay '+peso(amountDue(r)),
+    bplo:'Review requirements',reg:'Record '+OFFICES[S.office].toLowerCase()+' result',
+    treas:r.status==='For assessment'?'Assess fees':r.status==='Assessed'?'Compute and bill':r.pay&&r.pay.status==='Confirmed'?'Post payment, issue receipt':'Issue tax clearance',
+    mayor:'Approve and e-sign',assessor:r.status==='Declared'?'Register and map':'Appraise and assess'
+  };return m[role]||'';
+}
+function relevant(role){
+  if(role==='bplo'||role==='reg'||role==='mayor') return S.biz;
+  if(role==='assessor') return S.prop;
+  return all();
+}
+function counts(){const o={};for(const r of ROLES) o[r.id]=relevant(r.id).filter(x=>needs(r.id,x)).length;return o}
+
+/* ---------- small renderers ---------- */
+function pill(st){
+  const cls=['Issued','Cleared'].includes(st)?'ok':['Returned','Overdue'].includes(st)?'bad':['Submitted','Declared'].includes(st)?'new':'act';
+  return `<span class="pill ${cls}">${esc(st)}</span>`;
+}
+function row(r,role){
+  const biz=r.kind==='biz';const h=hint(role,r);
+  const sub=biz?`${r.ref} · ${r.type} · ${r.nature.split(' (')[0]}`:`${r.ref} · ${r.propKind}, ${r.cls} · ${r.location}`;
+  return `<button class="row ${r.kind}" data-open="${r.id}">
+    <span class="tag ${r.kind}">${biz?'eBOSS':'RPT'}</span>
+    <span><b>${esc(biz?r.name:r.desc)}</b><small>${esc(sub)}</small></span>
+    <span class="rside">${pill(r.status)}${h?`<span class="hint">${esc(h)}</span>`:''}</span></button>`;
+}
+function list(recs,role,emptyText){
+  return recs.length?`<div class="list">${recs.map(r=>row(r,role)).join('')}</div>`:`<p class="empty">${emptyText}</p>`;
+}
+function stepper(steps,st){
+  let cur=steps.indexOf(st),bad=false;
+  if(st==='Returned'){cur=0;bad=true} if(st==='Overdue'){cur=3;bad=true} if(st==='Approved') cur=5;
+  return `<ol class="steps" aria-label="Progress">${steps.map((s,i)=>`<li class="${i<cur?'done':i===cur?'cur'+(bad?' badstep':''):''}">${i===cur&&bad?esc(st):esc(s)}</li>`).join('')}</ol>`;
+}
+function qrSvg(text){
+  try{if(typeof qrcode!=='function') throw 0;const q=qrcode(0,'M');q.addData(text);q.make();return `<div class="qr">${q.createSvgTag(4,2)}</div>`}
+  catch(e){return `<div class="qr-fallback mono">QR: ${esc(text)}</div>`}
+}
+function photosHTML(files,title='Attached photos and documents'){
+  const ok=files.filter(Boolean);
+  if(!ok.length) return `<div class="box"><h3>${title}</h3><p class="muted">No images attached.</p></div>`;
+  return `<div class="box"><h3>${title}<small class="muted">${ok.length} · ${fmtB(ok.reduce((a,f)=>a+f.bytes,0))} in IndexedDB</small></h3>
+    <div class="photos">${ok.map(f=>`<figure><img src="${f.dataUrl}" alt="${esc(f.name)}" loading="lazy"><figcaption>${fmtB(f.bytes)} · ${f.w}×${f.h}<br>was ${fmtB(f.origBytes)}</figcaption></figure>`).join('')}</div></div>`;
+}
+function histHTML(r){
+  return `<div class="box"><h3>History</h3><ol class="hist">${[...r.hist].reverse().map(h=>`<li><div><div>${pill(h.status)} ${esc(h.note)}</div>
+    <div class="meta">${fmtTime(h.at)} · ${esc(h.by)}${h.notify?'<span class="ntc">SMS · email · portal notice</span>':''}</div></div></li>`).join('')}</ol></div>`;
+}
+function uploader(label='Add photos or scanned documents'){
+  return `<div class="drop"><label class="lbl" for="up">${label}</label>
+    <input type="file" id="up" accept="image/*" multiple>
+    <small class="muted">Up to 4 images. Each is resized to ${S.settings.maxSide}px and compressed under ${S.settings.limitKB} KB before it is saved.</small>
+    <div class="ups" id="ups">${pendingHTML()}</div></div>`;
+}
+function pendingHTML(){
+  return S.pending.map(f=>`<div class="up"><img src="${f.dataUrl}" alt=""><span>${esc(f.name)} · ${fmtB(f.origBytes)} → <b>${fmtB(f.bytes)}</b> (${f.w}×${f.h}, quality ${f.q.toFixed(2)})</span></div>`).join('');
+}
+function payBox(amount,overdue){
+  return `<div class="box act-box"><h3>Pay online<span class="num">${peso(amount)}</span></h3>
+    ${overdue?`<p class="warnline">This bill is past its due date. The amount includes the penalty.</p>`:''}
+    <div class="grid2"><div class="field"><label for="pay-method">Payment partner</label>
+      <select id="pay-method"><option>GCash</option><option>Maya</option><option>Landbank Link.BizPortal</option><option>Over the counter (Treasury)</option></select></div>
+      <label class="check"><input type="checkbox" id="pay-decline"> Simulate a declined payment</label></div>
+    <div class="btns"><button class="btn gold" data-act="pay">Pay ${peso(amount)}</button></div></div>`;
+}
+function payHTML(p){
+  if(!p) return '';
+  return `<div class="box"><h3>Payment${p.status==='Receipted'?pill('Receipted').replace('act','ok'):pill(p.status)}</h3>
+    <table class="money"><tr><td>Amount</td><td>${peso(p.amount)}</td></tr><tr><td>Partner</td><td>${esc(p.method)}</td></tr>
+    <tr><td>Reference no.</td><td class="mono">${esc(p.ref)}</td></tr><tr><td>Paid on</td><td>${fmtDate(p.date)}</td></tr>
+    ${p.receiptNo?`<tr><td>Official receipt</td><td class="mono">${esc(p.receiptNo)}</td></tr>`:''}</table></div>`;
+}
+const noAction=()=>`<p class="muted">No action for ${esc(roleLabel())} at this stage.</p>`;
+
+/* ---------- business detail ---------- */
+function feesDefaults(r){
+  const rate=r.type==='New'?0.005:0.015;
+  const tax=r2(r.base*rate),permit=1500,sanitary=300,building=500;
+  return{rate,tax,permit,sanitary,building,fire:r2((permit+sanitary+building)*0.15)};
+}
+function feesHTML(f){
+  return `<div class="box"><h3>Assessed fees<small class="muted">Due ${fmtDate(f.due)}</small></h3><table class="money">
+    <tr><td>Business tax</td><td>${peso(f.tax)}</td></tr><tr><td>Mayor's permit fee</td><td>${peso(f.permit)}</td></tr>
+    <tr><td>Sanitary inspection fee</td><td>${peso(f.sanitary)}</td></tr><tr><td>Building inspection fee</td><td>${peso(f.building)}</td></tr>
+    <tr><td>Fire safety inspection fee</td><td>${peso(f.fire)}</td></tr><tr class="tot"><td>Total</td><td>${peso(f.total)}</td></tr></table></div>`;
+}
+function clearHTML(r){
+  return `<div class="box"><h3>Regulatory clearances</h3><div class="clr">${Object.keys(OFFICES).map(k=>{
+    const v=r.clear[k];const last=[...r.findings].reverse().find(f=>f.office===k);
+    return `<div><b>${OFFICES[k]}</b>${v==='cleared'?pill('Cleared'):v==='failed'?pill('Returned').replace('Returned','Failed'):'<span class="pill new">Pending</span>'}${last&&last.note?`<small class="muted">${esc(last.note)}</small>`:''}</div>`}).join('')}</div></div>`;
+}
+function bizActions(r){
+  const R=S.role;
+  if(R==='owner'){
+    if(r.status==='Returned'){const n=[...r.hist].reverse().find(h=>h.status==='Returned');
+      return `<div class="box bad-box"><h3>Returned to you</h3><p class="warnline">${esc(n?n.note:'Corrections needed.')}</p>${uploader('Attach the corrected document')}
+      <div class="btns"><button class="btn gold" data-act="biz-resubmit">Resubmit application</button></div></div>`}
+    if(r.status==='For payment') return payBox(r.fees.total);
+    if(r.status==='Paid') return `<p class="okline">Payment received. Waiting for the Treasurer's receipt and the Mayor's signature.</p>`;
+    return '';
+  }
+  if(R==='bplo'&&r.status==='Submitted') return `<div class="box act-box"><h3>Check requirements</h3>
+    <p class="muted">Look at the attached documents. Forward to clearances if complete, or return with a note telling the owner what to fix.</p>
+    <div class="field"><label for="note">Note to owner (needed when returning)</label><textarea id="note" placeholder="Example: Barangay clearance is unreadable. Upload a clearer scan."></textarea></div>
+    <div class="btns"><button class="btn ok" data-act="biz-forward">Complete · forward to clearances</button><button class="btn bad" data-act="biz-return">Return to owner</button></div></div>`;
+  if(R==='reg'&&r.status==='Clearances'){
+    const v=r.clear[S.office];
+    if(v!=='pending') return `<p class="okline">${OFFICES[S.office]} already recorded: ${esc(v)}. Switch office on the main screen to act for another office.</p>`;
+    return `<div class="box act-box"><h3>${OFFICES[S.office]} inspection</h3>
+    <div class="field"><label for="note">Findings</label><textarea id="note" placeholder="Example: Fire extinguisher present and tagged; exits clear."></textarea></div>
+    <div class="btns"><button class="btn ok" data-act="clr-pass">Clear</button><button class="btn bad" data-act="clr-fail">Fail and return to owner</button></div></div>`;
+  }
+  if(R==='treas'&&r.status==='For assessment'){
+    const d=feesDefaults(r);
+    const f=(id,l,v)=>`<div class="field"><label for="${id}">${l}</label><input type="number" step="0.01" min="0" id="${id}" value="${v}" data-fee></div>`;
+    return `<div class="box act-box"><h3>Assess tax and fees<span class="num" id="f-total">${peso(d.tax+d.permit+d.sanitary+d.building+d.fire)}</span></h3>
+    <p class="muted">Business tax is ${(d.rate*100).toFixed(1)}% of declared ${r.type==='New'?'capital':'gross sales'} (${peso(r.base)}). Fire fee is 15% of the other regulatory fees. All rates are placeholders.</p>
+    <div class="grid2">${f('f-tax','Business tax',d.tax)}${f('f-permit',"Mayor's permit fee",d.permit)}${f('f-sanitary','Sanitary fee',d.sanitary)}${f('f-building','Building inspection',d.building)}${f('f-fire','Fire safety inspection',d.fire)}
+    <div class="field"><label for="f-due">Due date</label><input type="date" id="f-due" value="${plusDays(15)}"></div></div>
+    <div class="btns"><button class="btn gold" data-act="biz-assess">Assess and send bill</button></div></div>`;
+  }
+  if(R==='treas'&&r.status==='Paid'&&r.pay.status==='Confirmed') return postBox(r);
+  if(R==='mayor'&&r.status==='Paid'){
+    if(r.pay.status!=='Receipted') return `<p class="muted">Waiting for the Treasurer to post the payment.</p>`;
+    return `<div class="box act-box"><h3>Approve and e-sign the permit</h3><p class="muted">Requirements, all three clearances and payment are complete.</p>
+    <div class="btns"><button class="btn maroon" data-act="mayor-approve">Approve and e-sign</button></div></div>`;
+  }
+  return noAction();
+}
+function postBox(r){
+  return `<div class="box act-box"><h3>Post payment<span class="num">${peso(r.pay.amount)}</span></h3>
+  <p class="muted">${esc(r.pay.method)} confirmed reference <span class="mono">${esc(r.pay.ref)}</span>. Posting issues an official receipt.</p>
+  <div class="btns"><button class="btn gold" data-act="post">Post and issue receipt</button></div></div>`;
+}
+function bizDetail(r,files){
+  return `<header class="sh-head"><div><p class="eyebrow g">eBOSS · ${esc(r.ref)}</p><h2 id="shTitle">${esc(r.name)}</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></header>
+  <div>${pill(r.status)}</div>${stepper(BIZ_STEPS,r.status)}
+  ${bizActions(r)}
+  ${r.permit?`<div class="cert"><div><p class="eyebrow g">Mayor's permit · ${r.year}</p><h3>${esc(r.name)}</h3>
+    <p class="mono">${esc(r.permit.no)}</p><p class="muted">Valid until ${fmtDate(r.permit.validUntil)} · e-signed ${fmtDate(r.permit.issued)}</p></div>${qrSvg(`${r.permit.no}|${r.name}|valid ${r.permit.validUntil}`)}</div>`:''}
+  <dl class="facts"><div><dt>Owner</dt><dd>${esc(r.owner)}</dd></div><div><dt>Nature of business</dt><dd>${esc(r.nature)}</dd></div>
+  <div><dt>DTI / SEC / CDA no.</dt><dd class="mono">${esc(r.regNo)}</dd></div><div><dt>Address</dt><dd>${esc(r.address)}</dd></div>
+  <div><dt>Application</dt><dd>${esc(r.type)} · ${r.year}</dd></div><div><dt>Declared ${r.type==='New'?'capital':'gross sales'}</dt><dd class="num">${peso(r.base)}</dd></div></dl>
+  ${clearHTML(r)}${r.fees?feesHTML(r.fees):''}${payHTML(r.pay)}${photosHTML(files)}${histHTML(r)}`;
+}
+
+/* ---------- property detail ---------- */
+function propActions(r){
+  const R=S.role;
+  if(R==='owner'){
+    if(r.status==='Billed'||r.status==='Overdue') return payBox(amountDue(r),r.status==='Overdue');
+    return '';
+  }
+  if(R==='assessor'&&r.status==='Declared'){
+    const n=String(Math.floor(Math.random()*90000)+10000);
+    return `<div class="box act-box prop-act"><h3>Register and map on GIS</h3><div class="grid2">
+    <div class="field"><label for="p-td">Tax declaration no.</label><input type="text" id="p-td" value="TD-${YEAR}-${n}"></div>
+    <div class="field"><label for="p-parcel">Lot / parcel no.</label><input type="text" id="p-parcel" value="Lot ${Math.floor(Math.random()*900)+100}-B"></div>
+    <div class="field"><label for="p-lat">Latitude</label><input type="number" step="0.000001" id="p-lat" value="${(14.5+Math.random()*2).toFixed(6)}"></div>
+    <div class="field"><label for="p-lng">Longitude</label><input type="number" step="0.000001" id="p-lng" value="${(120.5+Math.random()*1.5).toFixed(6)}"></div></div>
+    <div class="btns"><button class="btn maroon" data-act="prop-register">Register property</button></div></div>`;
+  }
+  if(R==='assessor'&&r.status==='Registered'){
+    const lv=LEVELS[r.cls];
+    return `<div class="box act-box prop-act"><h3>Appraise and assess<span class="num" id="p-av">${peso(0)}</span></h3>
+    <p class="muted">Assessed value = market value × ${(lv*100).toFixed(0)}% assessment level for ${esc(r.cls.toLowerCase())} property (placeholder).</p>
+    <div class="grid2"><div class="field"><label for="p-mv">Market value</label><input type="number" min="0" step="100" id="p-mv" data-lv="${lv}" placeholder="e.g. 1,800,000"></div></div>
+    <div class="btns"><button class="btn maroon" data-act="prop-assess">Save assessment</button></div></div>`;
+  }
+  if(R==='treas'&&r.status==='Assessed'){
+    const av=r.assess.av;
+    return `<div class="box act-box prop-act"><h3>Compute tax and bill<span class="num" id="b-total">${peso(av*(RATES.basic+RATES.sef))}</span></h3>
+    <table class="money"><tr><td>Assessed value</td><td>${peso(av)}</td></tr><tr><td>Basic tax (${RATES.basic*100}%)</td><td>${peso(av*RATES.basic)}</td></tr>
+    <tr><td>Special Education Fund (${RATES.sef*100}%)</td><td>${peso(av*RATES.sef)}</td></tr></table>
+    <div class="grid2"><label class="check"><input type="checkbox" id="b-idle" data-av="${av}"> Idle land (adds ${RATES.idle*100}%)</label>
+    <div class="field"><label for="b-due">Due date</label><input type="date" id="b-due" value="${YEAR+1}-03-31"></div></div>
+    <div class="btns"><button class="btn maroon" data-act="prop-bill">Send tax bill</button></div></div>`;
+  }
+  if(R==='treas'&&r.status==='Paid'){
+    if(r.pay.status==='Confirmed') return postBox(r);
+    return `<div class="box act-box prop-act"><h3>Issue tax clearance</h3><p class="muted">Receipt ${esc(r.pay.receiptNo)} is posted. The clearance carries a QR code the owner can download.</p>
+    <div class="btns"><button class="btn maroon" data-act="prop-clear">Issue tax clearance</button></div></div>`;
+  }
+  return noAction();
+}
+function propDetail(r,files){
+  const b=r.bill;
+  return `<header class="sh-head"><div><p class="eyebrow m">RPTACS · ${esc(r.ref)}</p><h2 id="shTitle">${esc(r.desc)}</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></header>
+  <div>${pill(r.status)}</div>${stepper(PROP_STEPS,r.status)}
+  ${propActions(r)}
+  ${r.clearance?`<div class="cert rp"><div><p class="eyebrow m">Real property tax clearance</p><h3>${esc(r.desc)}</h3><p class="mono">${esc(r.clearance.no)}</p>
+    <p class="muted">${esc(r.reg.td)} · issued ${fmtDate(r.clearance.issued)}</p></div>${qrSvg(`${r.clearance.no}|${r.reg.td}|${r.owner}`)}</div>`:''}
+  <dl class="facts"><div><dt>Owner</dt><dd>${esc(r.owner)}</dd></div><div><dt>Location</dt><dd>${esc(r.location)}</dd></div>
+  <div><dt>Kind and class</dt><dd>${esc(r.propKind)} · ${esc(r.cls)}</dd></div><div><dt>Area</dt><dd class="num">${Number(r.area).toLocaleString()} sq m</dd></div>
+  <div><dt>Tax declaration no.</dt><dd class="mono">${r.reg?esc(r.reg.td):'Not yet assigned'}</dd></div>
+  <div><dt>GIS parcel</dt><dd>${r.reg?`${esc(r.reg.parcel)}<br><span class="mono">${r.reg.lat}, ${r.reg.lng}</span>`:'Not yet mapped'}</dd></div></dl>
+  ${r.assess?`<div class="box"><h3>Assessment<small class="muted">Effective ${r.assess.year}</small></h3><table class="money"><tr><td>Market value</td><td>${peso(r.assess.mv)}</td></tr>
+    <tr><td>Assessment level</td><td>${(r.assess.level*100).toFixed(0)}%</td></tr><tr class="tot"><td>Assessed value</td><td>${peso(r.assess.av)}</td></tr></table></div>`:''}
+  ${b?`<div class="box"><h3>Tax bill · ${b.year}<small class="muted">Due ${fmtDate(b.due)}</small></h3><table class="money">
+    <tr><td>Basic tax</td><td>${peso(b.basic)}</td></tr><tr><td>Special Education Fund</td><td>${peso(b.sef)}</td></tr>
+    ${b.idle?`<tr><td>Idle land tax</td><td>${peso(b.idle)}</td></tr>`:''}
+    ${b.penalty?`<tr><td>Penalty and interest (${b.months} mo × 2%)</td><td>${peso(b.penalty)}</td></tr>`:''}
+    <tr class="tot"><td>Amount due</td><td>${peso(amountDue(r))}</td></tr></table></div>`:''}
+  ${payHTML(r.pay)}${photosHTML(files,'Property photos and documents')}${histHTML(r)}`;
+}
+
+/* ---------- forms ---------- */
+function bizForm(){
+  return `<header class="sh-head"><div><p class="eyebrow g">eBOSS · new application</p><h2 id="shTitle">Apply for a business permit</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></header>
+  <form data-form="biz" class="sheet-in" novalidate>
+    <div class="field"><label for="n-name">Business name</label><input type="text" id="n-name" required placeholder="e.g. Tala Laundry Hub"></div>
+    <div class="grid2"><div class="field"><label for="n-nature">Nature of business</label><select id="n-nature">${NATURES.map(n=>`<option>${n}</option>`).join('')}</select></div>
+    <div class="field"><label for="n-type">Application type</label><select id="n-type"><option>New</option><option>Renewal</option></select></div>
+    <div class="field"><label for="n-reg">DTI / SEC / CDA no.</label><input type="text" id="n-reg" placeholder="e.g. DTI 4432178"></div>
+    <div class="field"><label for="n-base">Capital (new) or gross sales (renewal)</label><input type="number" min="0" step="100" id="n-base" placeholder="e.g. 250000"></div></div>
+    <div class="field"><label for="n-addr">Business address</label><input type="text" id="n-addr" placeholder="Street, barangay"></div>
+    ${uploader('Requirements: DTI/SEC registration, barangay clearance, lease or title, storefront photo')}
+    <p class="warnline" id="formErr" hidden></p>
+    <div class="btns"><button class="btn gold" type="submit">Submit application</button><button class="btn" type="button" data-act="close">Cancel</button></div>
+  </form>`;
+}
+function propForm(){
+  return `<header class="sh-head"><div><p class="eyebrow m">RPTACS · new declaration</p><h2 id="shTitle">Declare a property</h2></div><button class="x" data-act="close" aria-label="Close">✕</button></header>
+  <form data-form="prop" class="sheet-in" novalidate>
+    <div class="field"><label for="n-desc">Short description</label><input type="text" id="n-desc" placeholder="e.g. Two-storey house and lot"></div>
+    <div class="grid2"><div class="field"><label for="n-kind">Kind</label><select id="n-kind"><option>Land</option><option>Building</option><option>Machinery</option></select></div>
+    <div class="field"><label for="n-cls">Class (use)</label><select id="n-cls">${Object.keys(LEVELS).map(k=>`<option>${k}</option>`).join('')}</select></div>
+    <div class="field"><label for="n-area">Area (sq m)</label><input type="number" min="1" id="n-area" placeholder="e.g. 240"></div></div>
+    <div class="field"><label for="n-loc">Location</label><input type="text" id="n-loc" placeholder="Street, barangay"></div>
+    ${uploader('Title, deed of sale, survey plan or property photos')}
+    <p class="warnline" id="formErr" hidden></p>
+    <div class="btns"><button class="btn maroon" type="submit">Submit declaration</button><button class="btn" type="button" data-act="close">Cancel</button></div>
+  </form>`;
+}
+
+/* ---------- views ---------- */
+function vhead(extra=''){
+  const r=ROLES.find(x=>x.id===S.role);
+  return `<div class="vhead"><div><p class="eyebrow">Acting as</p><h2>${esc(r.label)}</h2><p class="who">${esc(r.who)}</p></div>${extra}</div>`;
+}
+function queueView(extraTop=''){
+  const recs=relevant(S.role);const act=recs.filter(r=>needs(S.role,r)),rest=recs.filter(r=>!needs(S.role,r));
+  return `${vhead(extraTop)}<div class="cols">
+    <section class="block"><header><h3>Needs your action</h3><small>${act.length}</small></header>${list(act,S.role,'Nothing waiting. Records reach this queue once the step before yours is done.')}</section>
+    <section class="block"><header><h3>Other records</h3><small>${rest.length}</small></header>${list(rest,S.role,'No other records.')}</section></div>`;
+}
+function ownerView(){
+  const act=all().filter(r=>needs('owner',r));
+  const notices=all().flatMap(r=>r.hist.filter(h=>h.notify&&h.by!=='Maria Dela Cruz (owner)').map(h=>({...h,ref:r.ref,name:r.kind==='biz'?r.name:r.desc}))).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,5);
+  return `${vhead(`<div class="btns"><button class="btn gold" data-act="new-biz">Apply for business permit</button><button class="btn maroon" data-act="new-prop">Declare property</button></div>`)}
+  <section class="block"><header><h3>Waiting on you</h3><small>${act.length}</small></header>${list(act,'owner','Nothing to pay or fix right now.')}</section>
+  <div class="cols"><section class="block"><header><h3>My businesses</h3><small>${S.biz.length}</small></header>${list(S.biz,'',"No businesses yet. Use “Apply for business permit” above to file the first one.")}</section>
+  <section class="block"><header><h3>My properties</h3><small>${S.prop.length}</small></header>${list(S.prop,'','No properties yet. Use “Declare property” above to add the first one.')}</section></div>
+  <section class="block"><header><h3>Latest notices</h3><small>Sent by SMS, email and portal</small></header>
+  ${notices.length?notices.map(n=>`<div class="notice"><span><b>${esc(n.name)}</b> is now ${esc(n.status)}. ${esc(n.note)}</span><small>${fmtTime(n.at)} · ${esc(n.ref)} · ${esc(n.by)}</small></div>`).join(''):'<p class="empty">Status changes on your applications and properties will appear here.</p>'}</section>`;
+}
+function regView(){
+  return queueView(`<div class="field" style="min-width:220px"><label for="office">Office</label><select id="office">${Object.entries(OFFICES).map(([k,v])=>`<option value="${k}"${k===S.office?' selected':''}>${v}</option>`).join('')}</select></div>`);
+}
+function treasView(){
+  const over=S.prop.filter(p=>p.status==='Overdue');
+  return queueView(`<div class="btns"><button class="btn" data-act="delinq">Run delinquency check</button></div>`)+
+  `<section class="block"><header><h3>Delinquent accounts</h3><small>${over.length} · ${peso(over.reduce((a,p)=>a+amountDue(p),0))} receivable</small></header>
+  ${list(over,'treas','No overdue property tax. The check also runs each time the app opens.')}</section>`;
+}
+function mayorView(){
+  const paidB=S.biz.filter(b=>b.pay),paidP=S.prop.filter(p=>p.pay);
+  const over=S.prop.filter(p=>p.status==='Overdue');
+  const sum=a=>a.reduce((s,r)=>s+r.pay.amount,0);
+  const pipe=BIZ_STEPS.concat('Returned').map(s=>`<span><b>${S.biz.filter(b=>b.status===s).length}</b>${s}</span>`).join('');
+  const pipeP=PROP_STEPS.concat('Overdue').map(s=>`<span><b>${S.prop.filter(b=>b.status===s).length}</b>${s}</span>`).join('');
+  const act=S.biz.filter(b=>needs('mayor',b));
+  return `${vhead()}<div class="tiles">
+    <div class="tile dk"><span class="eyebrow">Total collected</span><b>${peso(sum(paidB)+sum(paidP))}</b><small>eBOSS and RPTACS in this demo</small></div>
+    <div class="tile"><span class="eyebrow g">Business revenue</span><b>${peso(sum(paidB))}</b><small>${paidB.length} payments</small></div>
+    <div class="tile"><span class="eyebrow m">Real property tax</span><b>${peso(sum(paidP))}</b><small>${paidP.length} payments</small></div>
+    <div class="tile"><span class="eyebrow">Delinquent</span><b>${peso(over.reduce((a,p)=>a+amountDue(p),0))}</b><small>${over.length} overdue account${over.length===1?'':'s'}</small></div></div>
+  <section class="block"><header><h3>Permits waiting for your signature</h3><small>${act.length}</small></header>${list(act,'mayor','No permits waiting.')}</section>
+  <div class="cols"><section class="block"><h3>Business applications by stage</h3><div class="pipe">${pipe}</div></section>
+  <section class="block"><h3>Properties by stage</h3><div class="pipe">${pipeP}</div></section></div>`;
+}
+async function adminView(){
+  const files=(await DB.all('files')).sort((a,b)=>b.created.localeCompare(a.created));
+  const bytes=files.reduce((a,f)=>a+f.bytes,0),orig=files.reduce((a,f)=>a+f.origBytes,0);
+  let est='';try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();est=`${fmtB(e.usage||0)} used of about ${fmtB(e.quota||0)} allowed`}}catch(e){}
+  const refOf=f=>{const r=f.recId&&find(f.recId);return r?r.ref:'Not attached'};
+  const opt=(id,vals,cur,unit)=>`<select id="${id}">${vals.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v} ${unit}</option>`).join('')}</select>`;
+  return `${vhead()}<div class="tiles">
+    <div class="tile dk"><span class="eyebrow">Stored images</span><b>${files.length}</b><small>${fmtB(bytes)} as base64 JPEG</small></div>
+    <div class="tile"><span class="eyebrow">Before compression</span><b>${fmtB(orig)}</b><small>${orig?Math.round((1-bytes/orig)*100):0}% saved</small></div>
+    <div class="tile"><span class="eyebrow">Records</span><b>${S.biz.length+S.prop.length}</b><small>${S.biz.length} businesses · ${S.prop.length} properties</small></div>
+    <div class="tile"><span class="eyebrow">Browser storage</span><b style="font-size:1.05rem">${DB.persistent?'IndexedDB':'Memory only'}</b><small>${est||(DB.persistent?'Usage estimate not available':'Changes are lost when the tab closes')}</small></div></div>
+  <div class="cols"><section class="box"><h3>Compression settings</h3>
+    <p class="muted">New uploads are resized so the longest side fits, then saved as JPEG. Quality steps down from 0.82, then the size shrinks, until the image is under the limit.</p>
+    <div class="grid2"><div class="field"><label for="set-limit">Size limit per image</label>${opt('set-limit',[80,150,250,400],S.settings.limitKB,'KB')}</div>
+    <div class="field"><label for="set-side">Longest side</label>${opt('set-side',[960,1280,1600,2048],S.settings.maxSide,'px')}</div></div></section>
+  <section class="box"><h3>Try a photo</h3><p class="muted">Pick any photo to see the result with the current settings. It is not saved.</p>
+    <input type="file" id="try-file" accept="image/*"><div id="try-out"></div></section></div>
+  <section class="block"><header><h3>Images in IndexedDB</h3><small>${files.length}</small></header>
+    ${files.length?`<div class="gallery">${files.map(f=>`<figure><img src="${f.dataUrl}" alt="${esc(f.name)}" loading="lazy"><span><b style="color:var(--ink)">${esc(refOf(f))}</b><br>${fmtB(f.bytes)} · ${f.w}×${f.h} · q ${Number(f.q).toFixed(2)}<br>original ${fmtB(f.origBytes)}</span></figure>`).join('')}</div>`:'<p class="empty">No images stored.</p>'}</section>
+  <section class="box"><h3>Delete all data</h3><p class="muted">Deletes every record and image saved in this browser. Compression settings are kept.</p>
+    ${S.confirmReset?`<p class="warnline">This cannot be undone.</p><div class="btns"><button class="btn bad" data-act="reset-yes">Delete all records and images</button><button class="btn" data-act="reset-no">Keep my data</button></div>`:
+    `<div class="btns"><button class="btn bad" data-act="reset">Delete all data</button></div>`}</section>`;
+}
+
+/* ---------- render ---------- */
+async function render(){
+  const c=counts();
+  $('#roles').innerHTML=ROLES.map(r=>`<button data-role="${r.id}" aria-pressed="${r.id===S.role}">${esc(r.label)}${c[r.id]?`<span class="ct">${c[r.id]}</span>`:''}</button>`).join('');
+  const v={owner:ownerView,reg:regView,treas:treasView,mayor:mayorView}[S.role];
+  $('#app').innerHTML=S.role==='admin'?await adminView():v?v():queueView();
+  refreshChip();
+}
+async function refreshChip(){
+  try{const files=await DB.all('files');const b=files.reduce((a,f)=>a+f.bytes,0);
+    $('#dbChip').className='chip'+(DB.persistent?'':' warn');
+    $('#dbChip span').textContent=`${DB.persistent?'IndexedDB':'Memory only'} · ${S.biz.length+S.prop.length} records · ${files.length} images · ${fmtB(b)}`;
+  }catch(e){}
+}
+async function renderSheet(){
+  if(S.form){ $('#sheetBody').innerHTML=S.form==='biz'?bizForm():propForm(); return }
+  const r=find(S.open); if(!r){closeSheet();return}
+  const files=await Promise.all(r.files.map(id=>DB.get('files',id)));
+  $('#sheetBody').innerHTML=r.kind==='biz'?bizDetail(r,files):propDetail(r,files);
+}
+let lastFocus=null;
+async function openSheet(){lastFocus=document.activeElement;$('#shade').hidden=false;$('#sheet').hidden=false;$('#sheet').scrollTop=0;await renderSheet();const x=$('#sheet .x');if(x)x.focus()}
+async function closeSheet(){
+  for(const f of S.pending) await DB.del('files',f.id);
+  S.pending=[];S.open=null;S.form=null;$('#shade').hidden=true;$('#sheet').hidden=true;
+  if(lastFocus&&document.contains(lastFocus)) lastFocus.focus();
+  refreshChip();
+}
+let toastT;
+function toast(msg,err){const t=$('#toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600)}
+async function refresh(keepSheet=true){await load();await render();if(keepSheet&&!$('#sheet').hidden) await renderSheet()}
+
+/* ---------- attach pending files to a record ---------- */
+async function attachPending(rec){
+  for(const f of S.pending){f.recId=rec.id;f.ref=rec.ref;await DB.put('files',f);rec.files.push(f.id)}
+  const n=S.pending.length;S.pending=[];return n;
+}
+const val=id=>{const e=$('#'+id);return e?e.value.trim():''};
+
+/* ---------- actions ---------- */
+const ACT={
+  close:()=>closeSheet(),
+  'new-biz':()=>{S.form='biz';openSheet()},
+  'new-prop':()=>{S.form='prop';openSheet()},
+  reset:()=>{S.confirmReset=true;render()},
+  'reset-no':()=>{S.confirmReset=false;render()},
+  'reset-yes':async()=>{S.confirmReset=false;const keep=S.settings;await DB.clearAll();try{await DB.put('meta',{key:'settings',...keep})}catch(_){}await load();await render();toast('All records and images deleted')},
+  delinq:async()=>{const n=await runDelinquency(roleLabel());await refresh();toast(n?`${n} account${n>1?'s':''} flagged or updated`:'No new overdue accounts')},
+  'biz-forward':async r=>{r.clear=Object.fromEntries(Object.entries(r.clear).map(([k,v])=>[k,v==='failed'?'pending':v]));
+    addHist(r,'Clearances',val('note')||'Requirements complete. Sent to health, building and fire offices.');await save(r);toast('Forwarded to clearances')},
+  'biz-return':async r=>{const n=val('note');if(!n){toast('Write a note so the owner knows what to fix.',true);$('#note').focus();return false}
+    addHist(r,'Returned',n);await save(r);toast('Returned to owner')},
+  'biz-resubmit':async r=>{const n=await attachPending(r);if(!n){toast('Attach the corrected document first.',true);return false}
+    addHist(r,'Submitted',`Owner corrected the application and added ${n} document${n>1?'s':''}.`);await save(r);toast('Application resubmitted')},
+  'clr-pass':async r=>clearance(r,'cleared'),
+  'clr-fail':async r=>{if(!val('note')){toast('Write the findings so the owner knows what failed.',true);$('#note').focus();return false}return clearance(r,'failed')},
+  'biz-assess':async r=>{const g=id=>r2(parseFloat(val(id))||0);
+    const f={tax:g('f-tax'),permit:g('f-permit'),sanitary:g('f-sanitary'),building:g('f-building'),fire:g('f-fire'),due:val('f-due')||plusDays(15)};
+    f.total=r2(f.tax+f.permit+f.sanitary+f.building+f.fire);r.fees=f;
+    addHist(r,'For payment',`Tax and fees assessed: ${peso(f.total)}, due ${fmtDate(f.due)}.`);await save(r);toast('Bill sent to owner')},
+  pay:async r=>{const method=val('pay-method');const amount=r.kind==='biz'?r.fees.total:amountDue(r);
+    if($('#pay-decline')&&$('#pay-decline').checked){r.hist.push({at:new Date().toISOString(),by:method,status:r.status,note:`Payment of ${peso(amount)} was declined by ${method}. The owner can try again.`,notify:true});await save(r);toast('Payment declined. Try again.',true);return}
+    r.pay={ref:(method.split(' ')[0].toUpperCase().slice(0,4))+'-'+Math.random().toString(36).slice(2,10).toUpperCase(),method,amount,date:new Date().toISOString(),status:'Confirmed'};
+    addHist(r,'Paid',`${peso(amount)} paid through ${method}. Waiting for the Treasurer to post it.`);await save(r);toast('Payment confirmed')},
+  post:async r=>{r.pay.status='Receipted';r.pay.receiptNo=await nextNo('OR');
+    addHist(r,'Paid',`Payment posted. Official receipt ${r.pay.receiptNo} issued.`);await save(r);toast('Receipt '+r.pay.receiptNo+' issued')},
+  'mayor-approve':async r=>{r.permit={no:await nextNo('BP'),validUntil:`${r.year}-12-31`,issued:isoDay()};
+    addHist(r,'Approved','Permit approved and e-signed by the Mayor.',roleLabel(),false);
+    addHist(r,'Issued',`Mayor's permit ${r.permit.no} issued with QR code.`);await save(r);toast('Permit '+r.permit.no+' issued')},
+  'prop-register':async r=>{const td=val('p-td'),parcel=val('p-parcel');if(!td||!parcel){toast('Enter the tax declaration and parcel numbers.',true);return false}
+    r.reg={td,parcel,lat:val('p-lat'),lng:val('p-lng')};addHist(r,'Registered',`Registered as ${td} and mapped to ${parcel} on the GIS.`);await save(r);toast('Property registered')},
+  'prop-assess':async r=>{const mv=r2(parseFloat(val('p-mv')));if(!(mv>0)){toast('Enter the market value.',true);$('#p-mv').focus();return false}
+    const level=LEVELS[r.cls];r.assess={mv,level,av:r2(mv*level),year:YEAR+1};
+    addHist(r,'Assessed',`Market value ${peso(mv)}; assessed value ${peso(r.assess.av)}.`);await save(r);toast('Assessment saved')},
+  'prop-bill':async r=>{const av=r.assess.av,idle=$('#b-idle').checked;
+    const b={year:r.assess.year,basic:r2(av*RATES.basic),sef:r2(av*RATES.sef),idle:idle?r2(av*RATES.idle):0,due:val('b-due')||`${YEAR+1}-03-31`,penalty:0};
+    b.total=r2(b.basic+b.sef+b.idle);r.bill=b;addHist(r,'Billed',`Tax bill for ${b.year}: ${peso(b.total)}, due ${fmtDate(b.due)}.`);await save(r);
+    const n=await runDelinquency('System (delinquency check)');toast(n?'Bill sent. Due date has passed, so it is already overdue.':'Tax bill sent')},
+  'prop-clear':async r=>{r.clearance={no:await nextNo('TC'),issued:isoDay()};addHist(r,'Cleared',`Tax clearance ${r.clearance.no} issued.`);await save(r);toast('Tax clearance issued')}
+};
+async function clearance(r,result){
+  r.clear[S.office]=result;r.findings.push({office:S.office,result,note:val('note'),at:new Date().toISOString()});
+  const name=OFFICES[S.office];
+  if(result==='failed') addHist(r,'Returned',`${name} clearance failed: ${val('note')}`);
+  else if(Object.values(r.clear).every(v=>v==='cleared')) addHist(r,'For assessment',`${name} cleared. All clearances complete; sent to the Treasurer.`);
+  else addHist(r,'Clearances',`${name} cleared${val('note')?': '+val('note'):''}.`,roleLabel(),false);
+  await save(r);toast(result==='failed'?'Returned to owner':name+' clearance recorded');
+}
+
+/* ---------- delinquency ---------- */
+function monthsLate(due){
+  const d=new Date(due+'T23:59:59'),n=new Date();if(n<=d) return 0;
+  let m=(n.getFullYear()-d.getFullYear())*12+(n.getMonth()-d.getMonth());if(n.getDate()>d.getDate()) m++;
+  return Math.min(RATES.penaltyCap,Math.max(1,m));
+}
+async function runDelinquency(by){
+  let c=0;
+  for(const p of S.prop){
+    if(!p.bill||(p.status!=='Billed'&&p.status!=='Overdue')) continue;
+    const m=monthsLate(p.bill.due);if(!m) continue;
+    const pen=r2(p.bill.total*RATES.penaltyMonth*m);
+    if(p.status==='Overdue'&&p.bill.penalty===pen) continue;
+    const was=p.status;p.bill.months=m;p.bill.penalty=pen;
+    addHist(p,'Overdue',`${was==='Overdue'?'Penalty updated':'Past due date'}: ${m} month${m>1?'s':''} late at 2% a month adds ${peso(pen)}.`,by);
+    await save(p);c++;
+  }
+  return c;
+}
+
+/* ---------- forms submit ---------- */
+const FORMS={
+  biz:async()=>{
+    const name=val('n-name'),base=parseFloat(val('n-base')),reg=val('n-reg'),addr=val('n-addr');
+    const err=!name?'Enter the business name.':!reg?'Enter the DTI, SEC or CDA registration number.':!(base>0)?'Enter the capital or gross sales amount.':!addr?'Enter the business address.':!S.pending.length?'Attach at least one requirement photo or scan.':'';
+    if(err) return showErr(err);
+    const r={id:uid('b'),kind:'biz',ref:await nextNo('APP'),owner:'Maria Dela Cruz',name,nature:val('n-nature'),regNo:reg,address:addr,type:val('n-type'),base:r2(base),year:YEAR,
+      status:'Submitted',clear:{sanitary:'pending',building:'pending',fire:'pending'},findings:[],fees:null,pay:null,permit:null,files:[],hist:[],created:new Date().toISOString()};
+    await attachPending(r);addHist(r,'Submitted','Application filed online with requirements.');await save(r);
+    S.form=null;S.open=r.id;toast(r.ref+' submitted to BPLO');
+  },
+  prop:async()=>{
+    const desc=val('n-desc'),area=parseFloat(val('n-area')),loc=val('n-loc');
+    const err=!desc?'Enter a short description.':!(area>0)?'Enter the area in square meters.':!loc?'Enter the location.':!S.pending.length?'Attach at least one title, deed or photo.':'';
+    if(err) return showErr(err);
+    const r={id:uid('p'),kind:'prop',ref:await nextNo('DEC'),owner:'Maria Dela Cruz',desc,propKind:val('n-kind'),cls:val('n-cls'),area,location:loc,
+      status:'Declared',reg:null,assess:null,bill:null,pay:null,clearance:null,files:[],hist:[],created:new Date().toISOString()};
+    await attachPending(r);addHist(r,'Declared','Property declared online with supporting documents.');await save(r);
+    S.form=null;S.open=r.id;toast(r.ref+' sent to the Assessor');
+  }
+};
+function showErr(m){const e=$('#formErr');e.textContent=m;e.hidden=false;return false}
+
+/* ---------- tutorial ---------- */
+const TOUR=[
+{t:'Welcome to the demo',b:`<p>This app takes a <b>business permit</b> (eBOSS) and a <b>property tax account</b> (RPTACS) through every office, from the owner's application to the permit or the tax clearance.</p>
+<p>You play every part yourself: do one office's step, then switch to the next office and continue.</p>
+<p class="tip">Nothing is sent to a server. Records and photos are saved in this browser's IndexedDB, so they are still here when you come back.</p>`},
+{t:'Switch roles at the top',b:`<p>The buttons under the title are the people in the process: Owner portal, BPLO, Regulatory offices, Treasurer, Assessor, Mayor and Storage.</p>
+<ul><li>A <b>number</b> on a button means that role has records waiting for it.</li><li>Each role sees <b>Needs your action</b> first, then other records.</li><li>Click a record to open its panel: progress bar, the action for your role, payments and full history.</li></ul>`},
+{t:'Apply for a business permit',role:'owner',sys:'e',b:`<ol><li>In <b>Owner portal</b>, click <b>Apply for business permit</b>.</li><li>Fill in the business name, nature, DTI / SEC / CDA number, capital (new) or gross sales (renewal), and address.</li><li>Attach at least one photo or scan of the requirements, up to 4.</li><li>Click <b>Submit application</b>. It gets an APP number and goes to BPLO as <b>Submitted</b>.</li></ol>`},
+{t:'How photos are saved',role:'admin',b:`<p>When you attach a photo, the app compresses it before saving:</p>
+<ol><li>It resizes the image so the longest side fits the limit (1280px by default).</li><li>It saves it as JPEG, starting at quality 0.82 and stepping down to 0.42 until it is under the size limit (150 KB by default).</li><li>If it is still too big, it shrinks the image and tries again.</li><li>The result is stored as base64 text in the IndexedDB <b>files</b> store. The record keeps only the image IDs.</li></ol>
+<p class="tip">Each upload shows its before and after size. Change the limits, or test a photo without saving it, in <b>Storage</b>.</p>`},
+{t:'BPLO checks the requirements',role:'bplo',sys:'e',b:`<ol><li>Switch to <b>BPLO</b> and open the submitted application.</li><li>Look at the attached documents.</li><li>Click <b>Complete · forward to clearances</b>, or write a note and click <b>Return to owner</b>.</li></ol>
+<p>A returned application appears in the owner's <b>Waiting on you</b> list. The owner attaches a corrected document and clicks <b>Resubmit application</b>, which sends it back to BPLO.</p>`},
+{t:'Health, building and fire clearances',role:'reg',sys:'e',b:`<ol><li>Switch to <b>Regulatory offices</b> and pick an office in the <b>Office</b> menu.</li><li>Open the application, write findings, then click <b>Clear</b> or <b>Fail and return to owner</b>.</li><li>Repeat for the other two offices.</li></ol>
+<p>When all three offices clear it, the status becomes <b>For assessment</b> and it moves to the Treasurer. A failed clearance returns it to the owner.</p>`},
+{t:'Treasurer assesses tax and fees',role:'treas',sys:'e',b:`<ol><li>Switch to <b>Treasurer</b> and open the application marked <b>Assess fees</b>.</li><li>The fields are filled from placeholder rates: business tax, Mayor's permit, sanitary, building and fire fees. Edit any amount; the total updates as you type.</li><li>Set the due date and click <b>Assess and send bill</b>. The status becomes <b>For payment</b>.</li></ol>`},
+{t:'Owner pays online',role:'owner',sys:'e',b:`<ol><li>Switch to <b>Owner portal</b> and open the application in <b>Waiting on you</b>.</li><li>Choose a payment partner: GCash, Maya, Landbank or over the counter.</li><li>Click <b>Pay</b>. The payment is confirmed with a reference number and the status becomes <b>Paid</b>.</li></ol>
+<p class="tip">Tick <b>Simulate a declined payment</b> to see a failed payment. It is logged in the history and the owner can try again.</p>`},
+{t:'Treasurer posts the payment',role:'treas',sys:'e',b:`<ol><li>Switch to <b>Treasurer</b> and open the record marked <b>Post payment, issue receipt</b>.</li><li>Click <b>Post and issue receipt</b>. An official receipt number (OR) is added to the payment.</li></ol>
+<p>The permit now goes to the Mayor for signature.</p>`},
+{t:'Mayor approves the permit',role:'mayor',sys:'e',b:`<ol><li>Switch to <b>Mayor</b>. The dashboard shows money collected, delinquent accounts and records by stage.</li><li>Open the permit under <b>Permits waiting for your signature</b>.</li><li>Click <b>Approve and e-sign</b>. The status becomes <b>Issued</b>, with a permit number valid until December 31 and a QR code.</li></ol>
+<p>The owner sees the permit card at the top of the record.</p>`},
+{t:'Declare a property',role:'owner',sys:'r',b:`<ol><li>In <b>Owner portal</b>, click <b>Declare property</b>.</li><li>Enter a description, kind (land, building or machinery), class (use), area in square meters and location.</li><li>Attach a title, deed, survey plan or photo, then click <b>Submit declaration</b>.</li></ol>
+<p>It gets a DEC number and goes to the Assessor as <b>Declared</b>.</p>`},
+{t:'Assessor registers and assesses',role:'assessor',sys:'r',b:`<ol><li>Switch to <b>Assessor</b> and open the declared property.</li><li>Check the tax declaration number, parcel number and map coordinates, then click <b>Register property</b>. Status: <b>Registered</b>.</li><li>Open it again, enter the market value and click <b>Save assessment</b>. The assessed value is the market value times the assessment level for its class (for example 20% residential, 50% commercial). Status: <b>Assessed</b>.</li></ol>`},
+{t:'Treasurer bills, then issues the clearance',role:'treas',sys:'r',b:`<ol><li>In <b>Treasurer</b>, open the assessed property. The bill is basic tax 2% plus Special Education Fund 1% of the assessed value. Tick <b>Idle land</b> to add 5%.</li><li>Set the due date and click <b>Send tax bill</b>. Status: <b>Billed</b>.</li><li>The owner pays the Amilyar the same way as a permit.</li><li>Back in Treasurer, <b>Post and issue receipt</b>, then <b>Issue tax clearance</b>. Status: <b>Cleared</b>, with a QR code.</li></ol>`},
+{t:'Late payments and penalties',role:'treas',sys:'r',b:`<p>Each time the app opens, it checks billed properties. A bill past its due date becomes <b>Overdue</b> and gets a penalty of 2% a month, up to 36 months.</p>
+<ul><li>Treasurer lists overdue accounts under <b>Delinquent accounts</b> and can click <b>Run delinquency check</b> any time.</li><li>The owner's payment includes the penalty.</li><li>The Mayor's dashboard shows the delinquent total.</li></ul>
+<p class="tip">To see it now, set a due date in the past when sending a tax bill.</p>`},
+{t:'Notices and history',role:'owner',b:`<p>Every status change is written to the record's <b>History</b> with the time and who did it. Changes the owner should know about are tagged <b>SMS · email · portal notice</b>.</p>
+<p>The owner sees the latest ones under <b>Latest notices</b>. In this demo the notices are simulated; no messages are sent.</p>`},
+{t:'Storage, offline use and install',role:'admin',b:`<ul><li><b>Storage</b> shows every saved image with its size, the record it belongs to, how much was saved by compression, and the browser's storage use.</li><li>Change the size limit and longest side for new uploads, or try a photo without saving it.</li><li><b>Delete all data</b> empties the database so you can start over.</li><li>Install it as an app with <b>Install app</b> in the header, or your browser's install icon in the address bar. After the first load it also works offline.</li></ul>
+<p class="tip">Reopen this guide any time with the <b>Tutorial</b> button at the top.</p>`}
+];
+let tourI=0;
+function tourHTML(){
+  const s=TOUR[tourI],n=TOUR.length,role=s.role&&ROLES.find(r=>r.id===s.role),last=tourI===n-1;
+  return `<div class="tour-top"><p class="eyebrow">Tutorial · step ${tourI+1} of ${n}</p><button class="x" data-tour="close" aria-label="Close tutorial">✕</button></div>
+  <div class="tour-dots" aria-hidden="true">${TOUR.map((_,i)=>`<i class="${i<tourI?'done':i===tourI?'on':''}"></i>`).join('')}</div>
+  ${s.sys?`<p class="eyebrow ${s.sys==='e'?'g':'m'}">${s.sys==='e'?'eBOSS · business permit':'RPTACS · property tax'}</p>`:''}
+  <h2 id="tourTitle">${s.t}</h2>${role?`<p class="tour-role">Role for this step: <b>${esc(role.label)}</b></p>`:''}
+  <div class="tour-body">${s.b}</div>
+  <div class="tour-nav"><button class="btn" data-tour="back"${tourI===0?' disabled':''}>Back</button>
+  ${role?`<button class="btn" data-tour="go">Go to ${esc(role.label)}</button>`:''}
+  <button class="btn maroon" data-tour="${last?'close':'next'}">${last?'Start using the demo':'Next'}</button></div>`;
+}
+function openTour(i){tourI=i;$('#tourBody').innerHTML=tourHTML();$('#tour').hidden=false;const b=$('#tour [data-tour=next]')||$('#tour [data-tour=close]');if(b)b.focus()}
+async function closeTour(){$('#tour').hidden=true;try{await DB.put('meta',{key:'tourSeen',at:new Date().toISOString()})}catch(_){}}
+
+/* ---------- events ---------- */
+let busy=false;
+document.addEventListener('click',async e=>{
+  const tb=e.target.closest('[data-tour]');
+  if(tb){const a=tb.dataset.tour;
+    if(a==='open'){openTour(tourI>=TOUR.length-1?0:tourI);return}
+    if(a==='close'){const last=tourI===TOUR.length-1;await closeTour();if(last)tourI=0;$('[data-tour=open]').focus();return}
+    if(a==='go'){const r=TOUR[tourI].role;S.role=r;S.confirmReset=false;if(!$('#sheet').hidden) await closeSheet();try{history.replaceState(null,'','#'+r)}catch(_){}
+      await closeTour();await render();toast(`Now acting as ${ROLES.find(x=>x.id===r).label}. Reopen Tutorial to continue at step ${tourI+1}.`);return}
+    if(a==='next') tourI=Math.min(TOUR.length-1,tourI+1);
+    if(a==='back') tourI=Math.max(0,tourI-1);
+    $('#tourBody').innerHTML=tourHTML();$('#tour').scrollTop=0;const f=$('#tour [data-tour=next]')||$('#tour [data-tour=close]');if(f)f.focus();return}
+  const rb=e.target.closest('[data-role]');
+  if(rb){S.role=rb.dataset.role;S.confirmReset=false;try{history.replaceState(null,'','#'+S.role)}catch(_){}await render();return}
+  const o=e.target.closest('[data-open]');
+  if(o){S.open=o.dataset.open;S.form=null;await openSheet();return}
+  const a=e.target.closest('[data-act]');if(!a||busy) return;
+  const fn=ACT[a.dataset.act];if(!fn) return;
+  busy=true;a.disabled=true;
+  try{
+    const rec=S.open?find(S.open):null;
+    const res=await fn(rec);
+    if(res!==false&&rec) await refresh();
+  }catch(err){console.error(err);toast(err.message||'Something went wrong. Try again.',true)}
+  finally{busy=false;if(document.contains(a)) a.disabled=false}
+});
+$('#shade').addEventListener('click',()=>closeSheet());
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('#tour').hidden){closeTour();return}if(!$('#sheet').hidden) closeSheet()});
+$('#tour').addEventListener('click',e=>{if(e.target.id==='tour') closeTour()});
+document.addEventListener('submit',async e=>{
+  const f=e.target.closest('[data-form]');if(!f) return;e.preventDefault();if(busy) return;busy=true;
+  const btn=f.querySelector('[type=submit]');btn.disabled=true;
+  try{const ok=await FORMS[f.dataset.form]();if(ok!==false){await load();await render();await renderSheet()}}
+  catch(err){console.error(err);showErr(err.message||'Could not save. Try again.')}
+  finally{busy=false;if(document.contains(btn)) btn.disabled=false}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.matches('[data-fee]')){let s=0;document.querySelectorAll('[data-fee]').forEach(i=>s+=parseFloat(i.value)||0);$('#f-total').textContent=peso(s)}
+  if(t.id==='p-mv'){$('#p-av').textContent=peso((parseFloat(t.value)||0)*parseFloat(t.dataset.lv))}
+});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.id==='office'){S.office=t.value;await render();return}
+  if(t.id==='b-idle'){const av=parseFloat(t.dataset.av);$('#b-total').textContent=peso(av*(RATES.basic+RATES.sef+(t.checked?RATES.idle:0)));return}
+  if(t.id==='set-limit'||t.id==='set-side'){
+    S.settings={limitKB:+val('set-limit'),maxSide:+val('set-side')};
+    try{await DB.put('meta',{key:'settings',...S.settings})}catch(_){}
+    toast(`New uploads: under ${S.settings.limitKB} KB, ${S.settings.maxSide}px max`);return}
+  if(t.id==='up'){
+    const files=[...t.files];t.value='';
+    const room=4-S.pending.length;if(room<=0){toast('You can attach up to 4 images at a time.',true);return}
+    if(files.length>room) toast(`Only the first ${room} image${room>1?'s were':' was'} added. The limit is 4.`,true);
+    for(const f of files.slice(0,room)){
+      try{$('#ups').insertAdjacentHTML('beforeend',`<div class="up" id="upbusy"><span>Compressing ${esc(f.name)}…</span></div>`);
+        const rec=await storeImage(f);S.pending.push(rec);}
+      catch(err){toast(err.message||`Could not read ${f.name}.`,true)}
+      finally{const ub=$('#upbusy');if(ub)ub.remove();const u=$('#ups');if(u)u.innerHTML=pendingHTML()}
+    }
+    refreshChip();return;
+  }
+  if(t.id==='try-file'&&t.files[0]){
+    const f=t.files[0];const out=$('#try-out');out.innerHTML='<p class="muted">Compressing…</p>';
+    try{const img=await fileToImage(f);const c=await compressImage(img,S.settings);
+      out.innerHTML=`<div class="trybox"><img src="${c.dataUrl}" alt="Compressed preview"><table class="money">
+      <tr><td>Original</td><td>${fmtB(f.size)} · ${img.naturalWidth}×${img.naturalHeight}</td></tr>
+      <tr><td>Saved as</td><td>${fmtB(c.bytes)} · ${c.w}×${c.h}</td></tr><tr><td>JPEG quality</td><td>${c.q.toFixed(2)}</td></tr>
+      <tr><td>Base64 string length</td><td>${c.dataUrl.length.toLocaleString()} chars</td></tr>
+      <tr class="tot"><td>Reduction</td><td>${Math.max(0,Math.round((1-c.bytes/f.size)*100))}%</td></tr></table></div>
+      ${c.bytes>S.settings.limitKB*1024?'<p class="warnline">This image is still above the limit after six passes. Lower the longest side.</p>':''}`;
+    }catch(err){out.innerHTML=`<p class="warnline">${esc(f.name)} could not be read as an image.</p>`}
+    t.value='';
+  }
+});
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(ROLES.some(r=>r.id===h)&&h!==S.role){S.role=h;render()}});
+
+/* ---------- remove sample data left by the earlier version ---------- */
+async function purgeSamples(){
+  let n=0;
+  for(const st of ['businesses','properties','files']){
+    for(const r of await DB.all(st)) if(r.sample){await DB.del(st,r.id);n++}
+  }
+  const seeded=await DB.get('meta','seeded');
+  if(seeded){await DB.del('meta','seeded');await DB.del('meta','seq')}
+  return n;
+}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  const ok=await DB.open();
+  try{const s=await DB.get('meta','settings');if(s) S.settings={limitKB:s.limitKB,maxSide:s.maxSide}}catch(_){}
+  const h=location.hash.slice(1);if(ROLES.some(r=>r.id===h)) S.role=h;
+  try{await purgeSamples()}catch(e){console.error(e)}
+  await load();
+  try{await runDelinquency('System (delinquency check)');await load()}catch(e){console.error(e)}
+  await render();
+  try{if(!(await DB.get('meta','tourSeen'))) openTour(0)}catch(_){}
+  if(!ok) toast('IndexedDB is not available here. Changes last until you close this tab.',true);
+})();
+})();
+</script>
+
+<script>
+/* PWA: offline cache and install button */
+(function(){
+  if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('Service worker not registered',e)})});
+  }
+  var deferred=null,btn=document.getElementById('installBtn');
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;btn.hidden=false});
+  btn.addEventListener('click',async function(){if(!deferred)return;btn.hidden=true;deferred.prompt();try{await deferred.userChoice}catch(_){}deferred=null});
+  window.addEventListener('appinstalled',function(){btn.hidden=true});
+})();
+</script>
+</body>
+</html>
